@@ -84,7 +84,7 @@ require('lazy').setup({
 
       -- Useful status updates for LSP
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
-      { 'j-hui/fidget.nvim',       opts = {} },
+      { 'j-hui/fidget.nvim',       tag = "legacy", opts = {} },
 
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
@@ -369,7 +369,7 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = "Open diagn
 
 -- LSP settings.
 --  This function gets run when an LSP connects to a particular buffer.
-local on_attach = function(_, bufnr)
+local on_attach = function(client, bufnr)
   -- NOTE: Remember that lua is a real programming language, and as such it is possible
   -- to define small helper and utility functions so you don't have to repeat yourself
   -- many times.
@@ -384,8 +384,18 @@ local on_attach = function(_, bufnr)
     vim.keymap.set('n', keys, func, { buffer = bufnr, desc = desc })
   end
 
+  local rt = require("rust-tools")
+
+  if client.name == "rust_analyzer" then
+    -- Hover actions
+    nmap("<Leader>ha", rt.hover_actions.hover_actions, '[H]over [A]ction')
+    -- Code action groups
+    nmap("<Leader>ca", rt.code_action_group.code_action_group, '[C]ode [A]ction')
+  else
+    nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
+  end
+
   nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
-  nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
 
   nmap('gd', vim.lsp.buf.definition, '[G]oto [D]efinition')
   nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
@@ -423,25 +433,7 @@ local servers = {
   -- clangd = {},
   -- gopls = {},
   -- pyright = {},
-  rust_analyzer = {
-    ['rust-analyzer'] = {
-      cargo = {
-        buildScripts = {
-          enable = true,
-        },
-      },
-      procMacro = {
-        enable = true
-      },
-      checkOnSave = {
-        allFeatures = true,
-        overrideCommand = {
-          'cargo', 'clippy', '--workspace', '--message-format=json',
-          '--all-targets', '--all-features'
-        }
-      }
-    }
-  },
+  -- rust_analyzer = {},
   -- tsserver = {},
 
   lua_ls = {
@@ -554,5 +546,39 @@ require("luasnip").setup {
 }
 require("luasnip.loaders.from_lua").load({ paths = "~/.config/nvim/LuaSnip" })
 
+local rt = require("rust-tools")
+
+rt.setup {
+  tools = {
+    reload_workspace_from_cargo_toml = true,
+    hover_actions = {
+      auto_focus = true,
+    }
+  },
+  server = {
+    capabilities = capabilities,
+    on_attach = on_attach,
+    standalone = false,
+    settings = {
+      ['rust-analyzer'] = {
+        cargo = {
+          buildScripts = {
+            enable = true,
+          },
+        },
+        procMacro = {
+          enable = true
+        },
+        checkOnSave = {
+          allFeatures = true,
+          overrideCommand = {
+            'cargo', 'clippy', '--workspace', '--message-format=json',
+            '--all-targets', '--all-features'
+          }
+        }
+      }
+    }
+  }
+}
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
